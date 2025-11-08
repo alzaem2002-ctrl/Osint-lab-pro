@@ -100,7 +100,7 @@ initialize_package_json() {
   "name": "osint-lab-pro",
   "version": "1.0.0",
   "description": "Osint lab pro hybrid pwa",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
@@ -167,13 +167,36 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames
+          .filter(name => name !== CACHE_NAME)
+          .map(name => caches.delete(name))
+      );
+    })
   );
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
-      .then(response => response || fetch(event.request))
+      .then(response => {
+        return response || fetch(event.request);
+      })
+      .catch(() => {
+        // Optionally, you can customize this fallback response
+        return new Response('You are offline and the resource is not cached.', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      })
   );
 });
 EOF
@@ -275,7 +298,25 @@ const mimeTypes = {
 };
 
 const server = http.createServer((req, res) => {
-    let filePath = path.join(PUBLIC_DIR, req.url === '/' ? 'index.html' : req.url);
+    // Parse URL and remove query string
+    const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+    let requestPath = parsedUrl.pathname;
+    if (requestPath === '/') {
+        requestPath = '/index.html';
+    }
+    
+    // Remove leading slash and construct file path
+    const safePath = requestPath.replace(/^\/+/, '');
+    const filePath = path.resolve(PUBLIC_DIR, safePath);
+    
+    // Security: Ensure the resolved path is within PUBLIC_DIR
+    const relativePath = path.relative(PUBLIC_DIR, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<h1>403 - Forbidden</h1>', 'utf-8');
+        return;
+    }
+    
     const extname = path.extname(filePath);
     const contentType = mimeTypes[extname] || 'application/octet-stream';
 
@@ -290,7 +331,16 @@ const server = http.createServer((req, res) => {
             }
         } else {
             res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content, 'utf-8');
+            // Send binary files without encoding, text files with 'utf-8'
+            if (
+                contentType.startsWith('text/') ||
+                contentType === 'application/json' ||
+                contentType === 'application/javascript'
+            ) {
+                res.end(content, 'utf-8');
+            } else {
+                res.end(content);
+            }
         }
     });
 });

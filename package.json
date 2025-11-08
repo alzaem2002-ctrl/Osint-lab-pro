@@ -2,7 +2,7 @@
   "name": "osint-lab-pro",
   "version": "1.0.0",
   "description": "Osint lab pro hybrid pwa",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",

@@ -25,11 +25,13 @@ const server = http.createServer((req, res) => {
         requestPath = '/index.html';
     }
     
-    // Construct file path and normalize it
-    let filePath = path.normalize(path.join(PUBLIC_DIR, requestPath));
+    // Remove leading slash and construct file path
+    const safePath = requestPath.replace(/^\/+/, '');
+    const filePath = path.resolve(PUBLIC_DIR, safePath);
     
     // Security: Ensure the resolved path is within PUBLIC_DIR
-    if (!filePath.startsWith(PUBLIC_DIR)) {
+    const relativePath = path.relative(PUBLIC_DIR, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
         res.writeHead(403, { 'Content-Type': 'text/html' });
         res.end('<h1>403 - Forbidden</h1>', 'utf-8');
         return;
@@ -49,7 +51,12 @@ const server = http.createServer((req, res) => {
             }
         } else {
             res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content, 'utf-8');
+            // Send binary files without encoding, text files with 'utf-8'
+            if (contentType.startsWith('text/') || contentType === 'application/json' || contentType === 'application/javascript') {
+                res.end(content, 'utf-8');
+            } else {
+                res.end(content);
+            }
         }
     });
 });
