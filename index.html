@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OSINT Lab Pro - Professional OSINT toolkit for security researchers">
+    <meta name="theme-color" content="#1E88E5">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    
+    <title>OSINT Lab Pro - Hybrid PWA</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 50px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .version {
+            color: #1E88E5;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        
+        .launch-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .launch-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .features {
+            margin-top: 40px;
+            text-align: left;
+        }
+        
+        .feature {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 4px solid #1E88E5;
+        }
+        
+        .feature-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            color: #2e7d32;
+        }
+        
+        .warning {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3e0;
+            border-radius: 10px;
+            color: #e65100;
+            font-size: 0.9rem;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .install-prompt {
+            display: none;
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        
+        .install-prompt.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔍</div>
+        <h1>OSINT Lab Pro</h1>
+        <p class="subtitle">Professional OSINT Toolkit</p>
+        <p class="version">Version 2.0 - Hybrid PWA</p>
+        
+        <div id="status" class="status">
+            ✅ Application Ready
+        </div>
+        
+        <button onclick="launchApp()" class="launch-button">
+            Launch Application
+        </button>
+        
+        <div id="install-prompt" class="install-prompt">
+            📱 Install as App - Click here to install on your device
+        </div>
+        
+        <div class="features">
+            <h3 style="margin-bottom: 15px; color: #333;">🛠️ Features</h3>
+            
+            <div class="feature">
+                <span class="feature-icon">🌐</span>
+                <strong>Domain Analyzer</strong> - WHOIS, DNS, IP resolution
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">🌍</span>
+                <strong>IP Lookup</strong> - Geolocation & ISP information
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">📧</span>
+                <strong>Email Validator</strong> - Format validation & MX records
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">👥</span>
+                <strong>Social Media Finder</strong> - Multi-platform profile search
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">📱</span>
+                <strong>Phone Lookup</strong> - Number analysis & country detection
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">🔎</span>
+                <strong>Username Search</strong> - Cross-platform availability check
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">🔒</span>
+                <strong>Breach Checker</strong> - Data breach verification
+            </div>
+            
+            <div class="feature">
+                <span class="feature-icon">📄</span>
+                <strong>Metadata Extractor</strong> - File metadata analysis
+            </div>
+        </div>
+        
+        <div class="warning">
+            ⚠️ <strong>Ethical Use Only:</strong> This tool is for legal security research and testing only. 
+            Always respect privacy laws and obtain proper authorization.
+        </div>
+        
+        <div class="footer">
+            <p>Built with Streamlit & Python</p>
+            <p><a href="https://github.com/alzaem2002-ctrl/Osint-lab-pro" target="_blank">GitHub Repository</a></p>
+        </div>
+    </div>
+    
+    <script>
+        // PWA Install Prompt
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-prompt').classList.add('show');
+        });
+        
+        document.getElementById('install-prompt').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response: ${outcome}`);
+                deferredPrompt = null;
+                document.getElementById('install-prompt').classList.remove('show');
+            }
+        });
+        
+        // Launch Application
+        function launchApp() {
+            // Check if running locally or on a server
+            const port = window.location.port || '8501';
+            const streamlitUrl = `http://localhost:${port}`;
+            
+            // Update status
+            document.getElementById('status').innerHTML = '🚀 Launching Application...';
+            document.getElementById('status').style.background = '#fff3e0';
+            document.getElementById('status').style.color = '#e65100';
+            
+            // Try to open Streamlit app
+            setTimeout(() => {
+                window.location.href = streamlitUrl;
+            }, 500);
+        }
+        
+        // Check if app is already running
+        async function checkAppStatus() {
+            try {
+                const response = await fetch('http://localhost:8501');
+                if (response.ok) {
+                    document.getElementById('status').innerHTML = '✅ Streamlit Server Running';
+                    document.getElementById('status').style.background = '#e8f5e9';
+                }
+            } catch (e) {
+                document.getElementById('status').innerHTML = '⚠️ Start the server with: streamlit run streamlit_app_v2.py';
+                document.getElementById('status').style.background = '#fff3e0';
+                document.getElementById('status').style.color = '#e65100';
+            }
+        }
+        
+        // Check status on load
+        window.addEventListener('load', checkAppStatus);
+        
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.log('Service Worker registration failed', err));
+        }
+    </script>
+</body>
+</html>
