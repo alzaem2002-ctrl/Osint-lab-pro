@@ -34,7 +34,7 @@ export function SidebarProfile({
     : "الأستاذ / زياد العتيبي";
     
   const schoolName = user?.schoolName || "مدرسة زيد بن ثابت الابتدائية";
-  const department = user?.educationDepartment || "إدارة التعليم بمحافظة الرياض";
+  const department = user?.educationDepartment || "إدارة التعليم بالأحساء";
   const email = user?.email || user?.contactEmail || "z.alotaibi@school.edu.sa";
   const yearsOfService = user?.yearsOfService || 15;
   
