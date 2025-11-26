@@ -13,6 +13,7 @@ import { StrategiesModal } from "@/components/strategies-modal";
 import { ReEvaluateModal } from "@/components/re-evaluate-modal";
 import { IndicatorDetailsModal } from "@/components/indicator-details-modal";
 import { PrintReportModal } from "@/components/print-report-modal";
+import { EditProfileModal } from "@/components/edit-profile-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ export default function Home() {
   const [reEvaluateOpen, setReEvaluateOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -185,6 +187,27 @@ export default function Home() {
     },
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: Partial<typeof user>) => {
+      return apiRequest("PATCH", "/api/user", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setEditProfileOpen(false);
+      toast({
+        title: "تم بنجاح",
+        description: "تم تحديث بيانات المعلم بنجاح",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث البيانات",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddWitness = (indicatorId: string) => {
     setSelectedIndicatorId(indicatorId);
     setAddWitnessOpen(true);
@@ -246,6 +269,7 @@ export default function Home() {
           <aside className="order-2 lg:order-1">
             <SidebarProfile 
               user={user}
+              onEditProfile={() => setEditProfileOpen(true)}
               onPrintReport={handlePrintReport}
               onExportData={handleExportData}
               onImportData={handleImportData}
@@ -376,6 +400,14 @@ export default function Home() {
         indicators={indicators || []}
         stats={stats || defaultStats}
         user={user}
+      />
+
+      <EditProfileModal 
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        user={user}
+        onSubmit={(data) => updateProfileMutation.mutate(data)}
+        isLoading={updateProfileMutation.isPending}
       />
     </div>
   );

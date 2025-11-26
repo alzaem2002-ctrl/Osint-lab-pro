@@ -9,11 +9,13 @@ import {
   Upload, 
   RefreshCw,
   LogOut,
+  Edit,
   User as UserIcon
 } from "lucide-react";
 
 interface SidebarProfileProps {
   user?: User;
+  onEditProfile?: () => void;
   onPrintReport?: () => void;
   onExportData?: () => void;
   onImportData?: () => void;
@@ -22,7 +24,8 @@ interface SidebarProfileProps {
 }
 
 export function SidebarProfile({ 
-  user, 
+  user,
+  onEditProfile,
   onPrintReport, 
   onExportData, 
   onImportData, 
@@ -68,6 +71,12 @@ export function SidebarProfile({
       <Separator className="my-6" />
       
       <div className="grid grid-cols-1 gap-3">
+        <ActionButton 
+          icon={<Edit className="h-4 w-4" />} 
+          label="تحرير البيانات" 
+          onClick={onEditProfile}
+          testId="button-edit-profile"
+        />
         <ActionButton 
           icon={<FileText className="h-4 w-4" />} 
           label="طباعة التقرير" 

@@ -22,6 +22,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/user", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    try {
+      const { firstName, lastName, educationalLevel, schoolName, educationDepartment, subject, yearsOfService, contactEmail } = req.body;
+      
+      const updated = await storage.updateUser(user.claims.sub, {
+        firstName,
+        lastName,
+        educationalLevel,
+        schoolName,
+        educationDepartment,
+        subject,
+        yearsOfService,
+        contactEmail,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     const user = req.user as any;
     try {
