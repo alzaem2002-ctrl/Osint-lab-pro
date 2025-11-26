@@ -31,7 +31,7 @@ export function SidebarProfile({
 }: SidebarProfileProps) {
   const displayName = user?.firstName && user?.lastName 
     ? `الأستاذ / ${user.firstName} ${user.lastName}`
-    : "الأستاذ / زياد عبدالمحسن العتيبي";
+    : "الأستاذ / زياد العتيبي";
     
   const schoolName = user?.schoolName || "مدرسة زيد بن ثابت الابتدائية";
   const department = user?.educationDepartment || "إدارة التعليم بمحافظة الرياض";

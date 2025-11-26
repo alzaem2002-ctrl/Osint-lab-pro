@@ -15,7 +15,7 @@ interface HeaderProps {
 export function Header({ stats, user }: HeaderProps) {
   const principalName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}`
-    : "زياد عبدالمحسن العتيبي";
+    : "زياد العتيبي";
     
   const schoolName = user?.schoolName || "مدرسة زيد بن ثابت الابتدائية";
 
