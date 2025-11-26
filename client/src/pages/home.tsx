@@ -85,6 +85,7 @@ export default function Home() {
   const [addWitnessOpen, setAddWitnessOpen] = useState(false);
   const [strategiesOpen, setStrategiesOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [printFilterCompleted, setPrintFilterCompleted] = useState(false);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
   const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
   
@@ -212,11 +213,13 @@ export default function Home() {
   };
 
   const handlePrintReport = () => {
+    setPrintFilterCompleted(false);
     setPrintOpen(true);
   };
 
   const handlePrintCompleted = () => {
-    toast({ title: "طباعة المكتمل", description: "جاري تحضير تقرير المؤشرات المكتملة" });
+    setPrintFilterCompleted(true);
+    setPrintOpen(true);
   };
 
   const handleExportData = () => {
@@ -785,6 +788,7 @@ export default function Home() {
         indicators={indicators || []}
         stats={currentStats}
         user={user}
+        filterCompleted={printFilterCompleted}
       />
     </div>
   );

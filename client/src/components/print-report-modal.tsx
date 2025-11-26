@@ -9,6 +9,7 @@ interface PrintReportModalProps {
   indicators: IndicatorWithCriteria[];
   stats: DashboardStats;
   user?: User;
+  filterCompleted?: boolean;
 }
 
 export function PrintReportModal({ 
@@ -16,7 +17,8 @@ export function PrintReportModal({
   onOpenChange, 
   indicators, 
   stats, 
-  user 
+  user,
+  filterCompleted = false
 }: PrintReportModalProps) {
   const principalName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}`
@@ -24,6 +26,14 @@ export function PrintReportModal({
 
   const schoolName = user?.schoolName || "مدرسة زيد بن ثابت الابتدائية";
   const department = user?.educationDepartment || "إدارة التعليم بالأحساء";
+  
+  const filteredIndicators = filterCompleted 
+    ? indicators.filter(i => i.status === "completed")
+    : indicators;
+
+  const reportTitle = filterCompleted 
+    ? "تقرير المؤشرات المكتملة" 
+    : "تقرير شامل";
   
   const handlePrint = () => {
     window.print();
@@ -44,7 +54,7 @@ export function PrintReportModal({
             <h1 className="text-3xl font-bold mb-2">{schoolName}</h1>
             <p className="text-lg font-semibold mb-1">{department}</p>
             <p className="text-sm font-semibold">نظام توثيق شواهد الأداء الوظيفي</p>
-            <p className="text-xs mt-2">تقرير شامل - {new Date().toLocaleDateString('ar-SA')}</p>
+            <p className="text-xs mt-2">{reportTitle} - {new Date().toLocaleDateString('ar-SA')}</p>
           </div>
 
           {/* Principal Info */}
@@ -106,7 +116,7 @@ export function PrintReportModal({
                 </tr>
               </thead>
               <tbody>
-                {indicators.map((indicator, index) => (
+                {filteredIndicators.map((indicator, index) => (
                   <tr key={indicator.id} className="border border-black">
                     <td className="border border-black p-2 text-right">
                       {index + 1}. {indicator.title}
@@ -130,10 +140,10 @@ export function PrintReportModal({
           </div>
 
           {/* Criteria Details */}
-          {indicators.length > 0 && (
+          {filteredIndicators.length > 0 && (
             <div className="border border-black p-4">
               <h2 className="text-lg font-bold mb-4 text-center">تفاصيل المعايير</h2>
-              {indicators.map((indicator, indIndex) => (
+              {filteredIndicators.map((indicator, indIndex) => (
                 <div key={indicator.id} className="mb-4 pb-4 border-b border-black last:border-b-0">
                   <p className="font-bold mb-2">{indIndex + 1}. {indicator.title}</p>
                   {indicator.criteria && indicator.criteria.length > 0 ? (
