@@ -163,7 +163,6 @@ export function PrintReportModal({
           <div className="text-center border-t-2 border-black pt-4">
             <p className="text-sm font-semibold">تم إعداد هذا التقرير بواسطة نظام توثيق شواهد الأداء الوظيفي</p>
             <p className="text-xs mt-2">التاريخ: {new Date().toLocaleDateString('ar-SA')} | الوقت: {new Date().toLocaleTimeString('ar-SA')}</p>
-            <p className="text-xs mt-2 font-medium">الصفحة من إعداد عبدالعزيز الخلفان</p>
           </div>
         </div>
 

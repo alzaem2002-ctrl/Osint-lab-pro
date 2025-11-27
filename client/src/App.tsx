@@ -24,9 +24,10 @@ function Router() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
-      if (user.role === "admin" && location === "/") {
+      const isAdminOrCreator = user.role === "admin" || user.role === "creator";
+      if (isAdminOrCreator && location === "/") {
         setLocation("/principal");
-      } else if (user.role !== "admin" && location === "/principal") {
+      } else if (!isAdminOrCreator && location === "/principal") {
         setLocation("/");
       }
     }

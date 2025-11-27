@@ -159,7 +159,26 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is a principal (admin role)
+// Middleware to check if user is the site creator (highest permission level)
+export const isCreator: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+  
+  if (!user?.claims?.sub) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const dbUser = await storage.getUser(user.claims.sub);
+    if (!dbUser || dbUser.role !== "creator") {
+      return res.status(403).json({ message: "Forbidden - Creator access required" });
+    }
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Middleware to check if user is a principal (admin role) or creator
 export const isPrincipal: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
   
@@ -169,7 +188,7 @@ export const isPrincipal: RequestHandler = async (req, res, next) => {
 
   try {
     const dbUser = await storage.getUser(user.claims.sub);
-    if (!dbUser || dbUser.role !== "admin") {
+    if (!dbUser || (dbUser.role !== "admin" && dbUser.role !== "creator")) {
       return res.status(403).json({ message: "Forbidden - Principal access required" });
     }
     return next();
@@ -178,7 +197,7 @@ export const isPrincipal: RequestHandler = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is a supervisor
+// Middleware to check if user is a supervisor (or higher)
 export const isSupervisor: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
   
@@ -188,7 +207,7 @@ export const isSupervisor: RequestHandler = async (req, res, next) => {
 
   try {
     const dbUser = await storage.getUser(user.claims.sub);
-    if (!dbUser || (dbUser.role !== "admin" && dbUser.role !== "supervisor")) {
+    if (!dbUser || (dbUser.role !== "admin" && dbUser.role !== "supervisor" && dbUser.role !== "creator")) {
       return res.status(403).json({ message: "Forbidden - Supervisor access required" });
     }
     return next();

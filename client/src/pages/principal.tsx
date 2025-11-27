@@ -26,8 +26,12 @@ import {
   ThumbsDown,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  Shield,
+  Crown,
+  UserCog
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { 
   User as UserType, 
   PrincipalDashboardStats, 
@@ -104,6 +108,35 @@ export default function PrincipalDashboard() {
     },
   });
 
+  // Creator-only: Get all users
+  const { data: allUsers = [] } = useQuery<UserType[]>({
+    queryKey: ["/api/creator/users"],
+    enabled: user?.role === "creator",
+    staleTime: 60000,
+  });
+
+  // Creator-only: Update user role
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      return apiRequest("PATCH", `/api/creator/users/${userId}/role`, { role });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/creator/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/principal/teachers"] });
+      toast({
+        title: "تم التحديث",
+        description: "تم تغيير صلاحية المستخدم بنجاح",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "فشل في تغيير الصلاحية",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleApproval = () => {
     if (!selectedSignature) return;
     
@@ -144,7 +177,23 @@ export default function PrincipalDashboard() {
     }
   };
 
-  if (!user || user.role !== "admin") {
+  const isAdminOrCreator = user?.role === "admin" || user?.role === "creator";
+  const isCreator = user?.role === "creator";
+
+  const getRoleBadge = (role: string | null | undefined) => {
+    switch (role) {
+      case "creator":
+        return <Badge className="bg-purple-500/10 text-purple-600 border-purple-200 gap-1"><Crown className="h-3 w-3" />منشئ الموقع</Badge>;
+      case "admin":
+        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-200 gap-1"><Shield className="h-3 w-3" />مدير</Badge>;
+      case "supervisor":
+        return <Badge className="bg-green-500/10 text-green-600 border-green-200">مشرف</Badge>;
+      default:
+        return <Badge className="bg-gray-500/10 text-gray-600 border-gray-200">معلم</Badge>;
+    }
+  };
+
+  if (!user || !isAdminOrCreator) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background" dir="rtl">
         <Card className="p-8 text-center max-w-md">
@@ -265,7 +314,7 @@ export default function PrincipalDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+          <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isCreator ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="pending" className="gap-2" data-testid="tab-pending">
               <FileCheck className="h-4 w-4" />
               الطلبات المعلقة ({pendingSignatures.length})
@@ -274,6 +323,12 @@ export default function PrincipalDashboard() {
               <Users className="h-4 w-4" />
               المعلمين ({teachers.length})
             </TabsTrigger>
+            {isCreator && (
+              <TabsTrigger value="users" className="gap-2" data-testid="tab-users">
+                <UserCog className="h-4 w-4" />
+                إدارة المستخدمين
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Pending Approvals Tab */}
@@ -493,6 +548,83 @@ export default function PrincipalDashboard() {
               </Card>
             </div>
           </TabsContent>
+
+          {/* User Management Tab (Creator Only) */}
+          {isCreator && (
+            <TabsContent value="users">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                        <Crown className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div>
+                        <CardTitle>إدارة المستخدمين</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          تحكم في صلاحيات جميع المستخدمين
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-purple-500/10 text-purple-600 border-purple-200">
+                      {allUsers.length} مستخدم
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {allUsers.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Users className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                      <p>لا يوجد مستخدمين مسجلين</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {allUsers.map((u) => (
+                        <div
+                          key={u.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
+                          data-testid={`user-row-${u.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={u.profileImageUrl || ""} />
+                              <AvatarFallback className="bg-primary/10">
+                                {getInitials(u.firstName, u.lastName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">
+                                {u.firstName} {u.lastName}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{u.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {getRoleBadge(u.role)}
+                            <Select
+                              value={u.role || "teacher"}
+                              onValueChange={(role) => updateRoleMutation.mutate({ userId: u.id, role })}
+                              disabled={u.id === user.id}
+                            >
+                              <SelectTrigger className="w-36" data-testid={`select-role-${u.id}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="creator">منشئ الموقع</SelectItem>
+                                <SelectItem value="admin">مدير</SelectItem>
+                                <SelectItem value="supervisor">مشرف</SelectItem>
+                                <SelectItem value="teacher">معلم</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 

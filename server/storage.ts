@@ -75,6 +75,10 @@ export interface IStorage {
   updateSignature(id: string, data: Partial<InsertSignature>): Promise<Signature | undefined>;
   approveSignature(id: string, principalId: string, notes?: string): Promise<Signature | undefined>;
   rejectSignature(id: string, principalId: string, notes?: string): Promise<Signature | undefined>;
+  
+  // Creator methods (site management)
+  getAllUsers(): Promise<User[]>;
+  updateUserRole(userId: string, role: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -462,6 +466,20 @@ export class DatabaseStorage implements IStorage {
         signedAt: new Date(),
       })
       .where(eq(signatures.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Creator methods (site management)
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(users.createdAt);
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
       .returning();
     return updated;
   }

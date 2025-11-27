@@ -1,7 +1,7 @@
 import { type Server, createServer } from "node:http";
 import type { Express } from "express";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isPrincipal } from "./replitAuth";
+import { setupAuth, isAuthenticated, isPrincipal, isCreator } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Principal: Update user role
+  // Principal: Update user role (can only set admin, supervisor, teacher)
   app.patch("/api/principal/users/:userId/role", isAuthenticated, isPrincipal, async (req, res) => {
     try {
       const { role } = req.body;
@@ -521,6 +521,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Creator-only routes (site management)
+  
+  // Creator: Get all users
+  app.get("/api/creator/users", isAuthenticated, isCreator, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Creator: Update any user role (can set any role including creator)
+  app.patch("/api/creator/users/:userId/role", isAuthenticated, isCreator, async (req, res) => {
+    try {
+      const { role } = req.body;
+      
+      if (!role || !["creator", "admin", "supervisor", "teacher"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      const updated = await storage.updateUserRole(req.params.userId, role);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Creator: Get site statistics
+  app.get("/api/creator/stats", isAuthenticated, isCreator, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const stats = {
+        totalUsers: allUsers.length,
+        creators: allUsers.filter(u => u.role === "creator").length,
+        admins: allUsers.filter(u => u.role === "admin").length,
+        supervisors: allUsers.filter(u => u.role === "supervisor").length,
+        teachers: allUsers.filter(u => u.role === "teacher").length,
+      };
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching creator stats:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
