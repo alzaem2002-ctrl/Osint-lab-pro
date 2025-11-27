@@ -53,8 +53,12 @@ import {
   TrendingUp,
   Layers,
   Star,
-  LogOut
+  LogOut,
+  Send,
+  Clock,
+  CheckCircle2
 } from "lucide-react";
+import type { SignatureWithDetails } from "@shared/schema";
 
 const educationalLevels = [
   { value: "معلم", label: "معلم" },
@@ -193,6 +197,28 @@ export default function Home() {
       toast({ title: "خطأ", description: "فشل في تحديث المعيار", variant: "destructive" });
     },
   });
+
+  const { data: mySignatures = [] } = useQuery<SignatureWithDetails[]>({
+    queryKey: ["/api/my-signatures"],
+  });
+
+  const submitForApprovalMutation = useMutation({
+    mutationFn: async (indicatorId: string) => {
+      return apiRequest("POST", "/api/signatures", { indicatorId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-signatures"] });
+      toast({ title: "تم بنجاح", description: "تم تقديم المؤشر للاعتماد" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في تقديم الطلب", variant: "destructive" });
+    },
+  });
+
+  const getSignatureStatus = (indicatorId: string) => {
+    const signature = mySignatures.find(s => s.indicatorId === indicatorId);
+    return signature?.status;
+  };
 
   const handleEditProfile = () => {
     setProfileForm({
@@ -793,7 +819,7 @@ export default function Home() {
                     return (
                       <div>
                         <div className="flex items-center justify-between mb-6">
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             <Button
                               variant="outline"
                               size="sm"
@@ -812,6 +838,30 @@ export default function Home() {
                               <Plus className="h-4 w-4" />
                               إضافة معيار
                             </Button>
+                            {indicator.status === "completed" && !getSignatureStatus(indicator.id) && (
+                              <Button
+                                onClick={() => submitForApprovalMutation.mutate(indicator.id)}
+                                size="sm"
+                                className="gap-2 bg-amber-500 hover:bg-amber-600"
+                                disabled={submitForApprovalMutation.isPending}
+                                data-testid="button-submit-approval"
+                              >
+                                <Send className="h-4 w-4" />
+                                تقديم للاعتماد
+                              </Button>
+                            )}
+                            {getSignatureStatus(indicator.id) === "pending" && (
+                              <Badge className="bg-amber-500/10 text-amber-600 border-amber-200 gap-1">
+                                <Clock className="h-3 w-3" />
+                                قيد الانتظار
+                              </Badge>
+                            )}
+                            {getSignatureStatus(indicator.id) === "approved" && (
+                              <Badge className="bg-green-500/10 text-green-600 border-green-200 gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                معتمد
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-right">
                             <h3 className="text-lg font-bold flex items-center gap-2 justify-end">

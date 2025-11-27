@@ -158,3 +158,41 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
+
+// Middleware to check if user is a principal (admin role)
+export const isPrincipal: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+  
+  if (!user?.claims?.sub) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const dbUser = await storage.getUser(user.claims.sub);
+    if (!dbUser || dbUser.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden - Principal access required" });
+    }
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Middleware to check if user is a supervisor
+export const isSupervisor: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+  
+  if (!user?.claims?.sub) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const dbUser = await storage.getUser(user.claims.sub);
+    if (!dbUser || (dbUser.role !== "admin" && dbUser.role !== "supervisor")) {
+      return res.status(403).json({ message: "Forbidden - Supervisor access required" });
+    }
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

@@ -7,6 +7,7 @@ import {
   userStrategies,
   capabilities,
   changes,
+  signatures,
   type User,
   type UpsertUser,
   type Indicator,
@@ -19,8 +20,13 @@ import {
   type InsertStrategy,
   type Capability,
   type Change,
+  type Signature,
+  type InsertSignature,
   type IndicatorWithCriteria,
   type DashboardStats,
+  type SignatureWithDetails,
+  type PrincipalDashboardStats,
+  type TeacherWithStats,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -29,6 +35,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<UpsertUser>): Promise<User | undefined>;
+  getAllTeachers(): Promise<TeacherWithStats[]>;
   
   getIndicators(userId?: string): Promise<IndicatorWithCriteria[]>;
   getIndicator(id: string): Promise<IndicatorWithCriteria | undefined>;
@@ -57,7 +64,17 @@ export interface IStorage {
   getChanges(): Promise<Change[]>;
   
   getStats(userId?: string): Promise<DashboardStats>;
+  getPrincipalStats(): Promise<PrincipalDashboardStats>;
   reEvaluateIndicators(indicatorIds: string[]): Promise<void>;
+  
+  // Signature methods
+  createSignature(data: InsertSignature): Promise<Signature>;
+  getSignature(id: string): Promise<SignatureWithDetails | undefined>;
+  getSignaturesByTeacher(teacherId: string): Promise<SignatureWithDetails[]>;
+  getPendingSignatures(): Promise<SignatureWithDetails[]>;
+  updateSignature(id: string, data: Partial<InsertSignature>): Promise<Signature | undefined>;
+  approveSignature(id: string, principalId: string, notes?: string): Promise<Signature | undefined>;
+  rejectSignature(id: string, principalId: string, notes?: string): Promise<Signature | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -310,6 +327,143 @@ export class DatabaseStorage implements IStorage {
       
       await db.delete(witnesses).where(eq(witnesses.indicatorId, id));
     }
+  }
+
+  // Get all teachers with their stats
+  async getAllTeachers(): Promise<TeacherWithStats[]> {
+    const teachersList = await db.select().from(users).where(eq(users.role, "teacher"));
+    
+    const result: TeacherWithStats[] = [];
+    for (const teacher of teachersList) {
+      const teacherIndicators = await db.select().from(indicators).where(eq(indicators.userId, teacher.id));
+      const pendingSignatures = await db.select().from(signatures).where(
+        and(eq(signatures.teacherId, teacher.id), eq(signatures.status, "pending"))
+      );
+      
+      result.push({
+        ...teacher,
+        indicatorCount: teacherIndicators.length,
+        completedCount: teacherIndicators.filter(i => i.status === "completed").length,
+        pendingApprovalCount: pendingSignatures.length,
+      });
+    }
+    
+    return result;
+  }
+
+  // Principal dashboard stats
+  async getPrincipalStats(): Promise<PrincipalDashboardStats> {
+    const baseStats = await this.getStats();
+    
+    const allTeachers = await db.select().from(users).where(eq(users.role, "teacher"));
+    const allSignatures = await db.select().from(signatures);
+    
+    return {
+      ...baseStats,
+      totalTeachers: allTeachers.length,
+      pendingApprovals: allSignatures.filter(s => s.status === "pending").length,
+      approvedIndicators: allSignatures.filter(s => s.status === "approved").length,
+      rejectedIndicators: allSignatures.filter(s => s.status === "rejected").length,
+    };
+  }
+
+  // Signature methods
+  async createSignature(data: InsertSignature): Promise<Signature> {
+    const [signature] = await db.insert(signatures).values(data).returning();
+    return signature;
+  }
+
+  async getSignature(id: string): Promise<SignatureWithDetails | undefined> {
+    const [signature] = await db.select().from(signatures).where(eq(signatures.id, id));
+    if (!signature) return undefined;
+    
+    const teacher = signature.teacherId ? await this.getUser(signature.teacherId) : undefined;
+    const principal = signature.principalId ? await this.getUser(signature.principalId) : undefined;
+    const indicator = signature.indicatorId ? await this.getIndicator(signature.indicatorId) : undefined;
+    
+    return {
+      ...signature,
+      teacher,
+      principal,
+      indicator,
+    };
+  }
+
+  async getSignaturesByTeacher(teacherId: string): Promise<SignatureWithDetails[]> {
+    const signaturesList = await db.select().from(signatures).where(eq(signatures.teacherId, teacherId));
+    
+    const result: SignatureWithDetails[] = [];
+    for (const signature of signaturesList) {
+      const teacher = signature.teacherId ? await this.getUser(signature.teacherId) : undefined;
+      const principal = signature.principalId ? await this.getUser(signature.principalId) : undefined;
+      const indicator = signature.indicatorId ? await this.getIndicator(signature.indicatorId) : undefined;
+      
+      result.push({
+        ...signature,
+        teacher,
+        principal,
+        indicator,
+      });
+    }
+    
+    return result;
+  }
+
+  async getPendingSignatures(): Promise<SignatureWithDetails[]> {
+    const signaturesList = await db.select().from(signatures).where(eq(signatures.status, "pending"));
+    
+    const result: SignatureWithDetails[] = [];
+    for (const signature of signaturesList) {
+      const teacher = signature.teacherId ? await this.getUser(signature.teacherId) : undefined;
+      const principal = signature.principalId ? await this.getUser(signature.principalId) : undefined;
+      const indicator = signature.indicatorId ? await this.getIndicator(signature.indicatorId) : undefined;
+      
+      result.push({
+        ...signature,
+        teacher,
+        principal,
+        indicator,
+      });
+    }
+    
+    return result;
+  }
+
+  async updateSignature(id: string, data: Partial<InsertSignature>): Promise<Signature | undefined> {
+    const [updated] = await db
+      .update(signatures)
+      .set(data)
+      .where(eq(signatures.id, id))
+      .returning();
+    return updated;
+  }
+
+  async approveSignature(id: string, principalId: string, notes?: string): Promise<Signature | undefined> {
+    const [updated] = await db
+      .update(signatures)
+      .set({
+        status: "approved",
+        principalId,
+        notes,
+        signedAt: new Date(),
+      })
+      .where(eq(signatures.id, id))
+      .returning();
+    return updated;
+  }
+
+  async rejectSignature(id: string, principalId: string, notes?: string): Promise<Signature | undefined> {
+    const [updated] = await db
+      .update(signatures)
+      .set({
+        status: "rejected",
+        principalId,
+        notes,
+        signedAt: new Date(),
+      })
+      .where(eq(signatures.id, id))
+      .returning();
+    return updated;
   }
 }
 

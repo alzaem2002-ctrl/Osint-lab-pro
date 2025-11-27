@@ -116,11 +116,26 @@ export const changes = pgTable("changes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Signatures - التوقيعات والاعتماد
+export const signatures = pgTable("signatures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  indicatorId: varchar("indicator_id").references(() => indicators.id, { onDelete: "cascade" }),
+  teacherId: varchar("teacher_id").references(() => users.id, { onDelete: "cascade" }),
+  principalId: varchar("principal_id").references(() => users.id, { onDelete: "set null" }),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, approved, rejected
+  notes: text("notes"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  signedAt: timestamp("signed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   indicators: many(indicators),
   witnesses: many(witnesses),
   userStrategies: many(userStrategies),
+  submittedSignatures: many(signatures, { relationName: "teacherSignatures" }),
+  approvedSignatures: many(signatures, { relationName: "principalSignatures" }),
 }));
 
 export const indicatorsRelations = relations(indicators, ({ one, many }) => ({
@@ -130,6 +145,7 @@ export const indicatorsRelations = relations(indicators, ({ one, many }) => ({
   }),
   criteria: many(criteria),
   witnesses: many(witnesses),
+  signatures: many(signatures),
 }));
 
 export const criteriaRelations = relations(criteria, ({ one, many }) => ({
@@ -167,6 +183,23 @@ export const userStrategiesRelations = relations(userStrategies, ({ one }) => ({
   strategy: one(strategies, {
     fields: [userStrategies.strategyId],
     references: [strategies.id],
+  }),
+}));
+
+export const signaturesRelations = relations(signatures, ({ one }) => ({
+  indicator: one(indicators, {
+    fields: [signatures.indicatorId],
+    references: [indicators.id],
+  }),
+  teacher: one(users, {
+    fields: [signatures.teacherId],
+    references: [users.id],
+    relationName: "teacherSignatures",
+  }),
+  principal: one(users, {
+    fields: [signatures.principalId],
+    references: [users.id],
+    relationName: "principalSignatures",
   }),
 }));
 
@@ -213,6 +246,11 @@ export const insertChangeSchema = createInsertSchema(changes).omit({
   createdAt: true,
 });
 
+export const insertSignatureSchema = createInsertSchema(signatures).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -239,6 +277,9 @@ export type InsertCapability = z.infer<typeof insertCapabilitySchema>;
 export type Change = typeof changes.$inferSelect;
 export type InsertChange = z.infer<typeof insertChangeSchema>;
 
+export type Signature = typeof signatures.$inferSelect;
+export type InsertSignature = z.infer<typeof insertSignatureSchema>;
+
 // Extended types for frontend
 export type IndicatorWithCriteria = Indicator & {
   criteria: Criteria[];
@@ -257,4 +298,26 @@ export type DashboardStats = {
   pendingIndicators: number;
   inProgressIndicators: number;
   totalWitnesses: number;
+};
+
+// Extended signature type with user and indicator details
+export type SignatureWithDetails = Signature & {
+  teacher?: User;
+  principal?: User;
+  indicator?: IndicatorWithCriteria;
+};
+
+// Principal dashboard stats
+export type PrincipalDashboardStats = DashboardStats & {
+  totalTeachers: number;
+  pendingApprovals: number;
+  approvedIndicators: number;
+  rejectedIndicators: number;
+};
+
+// Teacher info for principal view
+export type TeacherWithStats = User & {
+  indicatorCount: number;
+  completedCount: number;
+  pendingApprovalCount: number;
 };

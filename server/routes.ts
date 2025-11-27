@@ -1,7 +1,7 @@
 import { type Server, createServer } from "node:http";
 import type { Express } from "express";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isPrincipal } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -363,6 +363,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       console.error("Error re-evaluating indicators:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // =====================================================
+  // SIGNATURE ROUTES - Teacher submits for approval
+  // =====================================================
+
+  // Teacher: Submit indicator for approval
+  app.post("/api/signatures", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    try {
+      const { indicatorId } = req.body;
+      
+      if (!indicatorId) {
+        return res.status(400).json({ message: "indicatorId is required" });
+      }
+
+      const indicator = await storage.getIndicator(indicatorId);
+      if (!indicator) {
+        return res.status(404).json({ message: "Indicator not found" });
+      }
+      if (indicator.userId !== user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const signature = await storage.createSignature({
+        indicatorId,
+        teacherId: user.claims.sub,
+        status: "pending",
+      });
+
+      res.json(signature);
+    } catch (error) {
+      console.error("Error creating signature:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Teacher: Get my signatures
+  app.get("/api/my-signatures", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    try {
+      const signatures = await storage.getSignaturesByTeacher(user.claims.sub);
+      res.json(signatures);
+    } catch (error) {
+      console.error("Error fetching signatures:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // =====================================================
+  // PRINCIPAL ROUTES - Admin access only
+  // =====================================================
+
+  // Principal: Get dashboard stats
+  app.get("/api/principal/stats", isAuthenticated, isPrincipal, async (req, res) => {
+    try {
+      const stats = await storage.getPrincipalStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching principal stats:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Principal: Get all teachers with their stats
+  app.get("/api/principal/teachers", isAuthenticated, isPrincipal, async (req, res) => {
+    try {
+      const teachers = await storage.getAllTeachers();
+      res.json(teachers);
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Principal: Get all indicators for a specific teacher
+  app.get("/api/principal/teachers/:teacherId/indicators", isAuthenticated, isPrincipal, async (req, res) => {
+    try {
+      const indicators = await storage.getIndicators(req.params.teacherId);
+      res.json(indicators);
+    } catch (error) {
+      console.error("Error fetching teacher indicators:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Principal: Get pending signatures
+  app.get("/api/principal/pending-signatures", isAuthenticated, isPrincipal, async (req, res) => {
+    try {
+      const signatures = await storage.getPendingSignatures();
+      res.json(signatures);
+    } catch (error) {
+      console.error("Error fetching pending signatures:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Principal: Approve a signature
+  app.post("/api/principal/signatures/:id/approve", isAuthenticated, isPrincipal, async (req, res) => {
+    const user = req.user as any;
+    try {
+      const { notes } = req.body;
+      const signature = await storage.approveSignature(req.params.id, user.claims.sub, notes);
+      
+      if (!signature) {
+        return res.status(404).json({ message: "Signature not found" });
+      }
+      
+      res.json(signature);
+    } catch (error) {
+      console.error("Error approving signature:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Principal: Reject a signature
+  app.post("/api/principal/signatures/:id/reject", isAuthenticated, isPrincipal, async (req, res) => {
+    const user = req.user as any;
+    try {
+      const { notes } = req.body;
+      
+      if (!notes) {
+        return res.status(400).json({ message: "Notes are required when rejecting" });
+      }
+      
+      const signature = await storage.rejectSignature(req.params.id, user.claims.sub, notes);
+      
+      if (!signature) {
+        return res.status(404).json({ message: "Signature not found" });
+      }
+      
+      res.json(signature);
+    } catch (error) {
+      console.error("Error rejecting signature:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Principal: Update user role
+  app.patch("/api/principal/users/:userId/role", isAuthenticated, isPrincipal, async (req, res) => {
+    try {
+      const { role } = req.body;
+      
+      if (!role || !["admin", "supervisor", "teacher"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      const updated = await storage.updateUser(req.params.userId, { role });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user role:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
