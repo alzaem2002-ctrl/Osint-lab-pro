@@ -83,6 +83,10 @@ export interface IStorage {
   // Custom auth methods
   findTeacherByName(firstName: string, lastName: string): Promise<User | undefined>;
   findUserByRole(role: string): Promise<User | undefined>;
+  
+  // Default indicators
+  seedDefaultIndicators(userId: string): Promise<void>;
+  hasIndicators(userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -510,6 +514,168 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.role, role))
       .limit(1);
     return user;
+  }
+
+  // Seed default indicators for a new user
+  async seedDefaultIndicators(userId: string): Promise<void> {
+    // Check if user already has indicators
+    const existingIndicators = await db.select().from(indicators).where(eq(indicators.userId, userId));
+    if (existingIndicators.length > 0) {
+      return; // User already has indicators, don't seed
+    }
+
+    const defaultIndicators = [
+      {
+        title: "أداء الواجبات الوظيفية",
+        description: "توثيق الالتزام بالواجبات الوظيفية والمهام اليومية",
+        criteria: [
+          "سجل الدوام الرسمي",
+          "سجل المناوبات والإشراف اليومي",
+          "سجل الانتظار",
+          "متابعة المهام اليومية"
+        ]
+      },
+      {
+        title: "التفاعل مع المجتمع المهني",
+        description: "توثيق التفاعل والتعاون مع الزملاء في المجتمع المهني",
+        criteria: [
+          "زيارة معلم",
+          "درس تطبيقي",
+          "شهادة حضور معلم",
+          "تبادل خبرة مع زميل"
+        ]
+      },
+      {
+        title: "التفاعل مع أولياء الأمور",
+        description: "توثيق التواصل والتفاعل مع أولياء الأمور",
+        criteria: [
+          "سجل التواصل مع أولياء الأمور",
+          "محاضر اجتماعات أولياء الأمور",
+          "رسائل وتقارير للأسر",
+          "مشاركة أولياء الأمور في الأنشطة"
+        ]
+      },
+      {
+        title: "استراتيجيات التدريس",
+        description: "توثيق استخدام استراتيجيات التدريس المتنوعة",
+        criteria: [
+          "تقرير أو صورة",
+          "من سجل التحضير",
+          "نماذج من أوراق العمل",
+          "تسجيلات فيديو للدروس"
+        ]
+      },
+      {
+        title: "تحسين نتائج المتعلمين",
+        description: "توثيق الجهود المبذولة لتحسين مستوى الطلاب",
+        criteria: [
+          "خطط علاجية للطلاب",
+          "برامج إثرائية للمتفوقين",
+          "تقارير تحسن المستوى",
+          "مقارنة نتائج ما قبل وما بعد"
+        ]
+      },
+      {
+        title: "إعداد وتنفيذ خطط التعلم",
+        description: "توثيق التخطيط والتنفيذ للعملية التعليمية",
+        criteria: [
+          "الخطة الفصلية",
+          "التحضير اليومي",
+          "توزيع المنهج",
+          "خطط الوحدات الدراسية"
+        ]
+      },
+      {
+        title: "توظيف تقنيات ووسائل التعلم المناسبة",
+        description: "توثيق استخدام التقنية في التعليم",
+        criteria: [
+          "استخدام السبورة التفاعلية",
+          "توظيف المنصات التعليمية",
+          "إنتاج محتوى رقمي",
+          "استخدام التطبيقات التعليمية"
+        ]
+      },
+      {
+        title: "تهيئة البيئة التعليمية",
+        description: "توثيق تجهيز وتهيئة بيئة التعلم",
+        criteria: [
+          "صور الفصل الدراسي",
+          "ركن التعلم",
+          "اللوحات والوسائل التعليمية",
+          "تنظيم مقاعد الطلاب"
+        ]
+      },
+      {
+        title: "الإدارة الصفية",
+        description: "توثيق مهارات إدارة الصف",
+        criteria: [
+          "قواعد وتعليمات الفصل",
+          "نظام التعزيز والتحفيز",
+          "سجل السلوك",
+          "استراتيجيات ضبط الصف"
+        ]
+      },
+      {
+        title: "تحليل نتائج المتعلمين وتشخيص مستوياتهم",
+        description: "توثيق تحليل البيانات واتخاذ القرارات",
+        criteria: [
+          "جداول تحليل النتائج",
+          "رسوم بيانية للأداء",
+          "تقارير التشخيص",
+          "خطط بناءً على التحليل"
+        ]
+      },
+      {
+        title: "تنوع أساليب التقويم",
+        description: "توثيق استخدام أساليب تقويم متنوعة",
+        criteria: [
+          "نماذج من اختبارات",
+          "نموذج من ملفات إنجاز الطلاب",
+          "نموذج من المهام الأدائية",
+          "نماذج من المشاريع"
+        ]
+      },
+      {
+        title: "الإبداع والابتكار",
+        description: "توثيق الإبداع والابتكار في العمل التعليمي",
+        criteria: [
+          "مشاريع إبداعية - وثائق المشاريع الإبداعية والمبادرات المبتكرة",
+          "جوائز وتكريمات - شهادات الجوائز والتكريمات للإبداع",
+          "أعمال طلابية مميزة - نماذج من الأعمال الطلابية المبدعة"
+        ]
+      }
+    ];
+
+    // Create indicators and their criteria
+    for (let i = 0; i < defaultIndicators.length; i++) {
+      const indicatorData = defaultIndicators[i];
+      
+      // Create the indicator
+      const [indicator] = await db.insert(indicators).values({
+        title: indicatorData.title,
+        description: indicatorData.description,
+        status: "pending",
+        witnessCount: 0,
+        userId: userId,
+        order: i + 1
+      }).returning();
+
+      // Create criteria for this indicator
+      for (let j = 0; j < indicatorData.criteria.length; j++) {
+        await db.insert(criteria).values({
+          indicatorId: indicator.id,
+          title: indicatorData.criteria[j],
+          isCompleted: false,
+          order: j + 1
+        });
+      }
+    }
+  }
+
+  // Check if user has indicators
+  async hasIndicators(userId: string): Promise<boolean> {
+    const existingIndicators = await db.select().from(indicators).where(eq(indicators.userId, userId));
+    return existingIndicators.length > 0;
   }
 }
 

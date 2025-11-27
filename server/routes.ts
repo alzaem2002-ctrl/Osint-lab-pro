@@ -53,6 +53,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: "teacher",
         });
 
+        // Seed default indicators for new teacher
+        await storage.seedDefaultIndicators(newTeacher.id);
+
         (req.session as any).userId = newTeacher.id;
         (req.session as any).userRole = "teacher";
         await new Promise<void>((resolve, reject) => {

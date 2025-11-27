@@ -67,19 +67,23 @@ const educationalLevels = [
   { value: "معلم خبير", label: "معلم خبير" },
 ];
 
-const indicatorIcons: Record<number, React.ReactNode> = {
-  1: <ClipboardList className="h-6 w-6" />,
-  2: <Target className="h-6 w-6" />,
-  3: <Users className="h-6 w-6" />,
-  4: <Presentation className="h-6 w-6" />,
-  5: <TrendingUp className="h-6 w-6" />,
-  6: <FileText className="h-6 w-6" />,
-  7: <Layers className="h-6 w-6" />,
-  8: <Star className="h-6 w-6" />,
-  9: <Settings className="h-6 w-6" />,
-  10: <BarChart3 className="h-6 w-6" />,
-  11: <CheckCircle className="h-6 w-6" />,
-  12: <Lightbulb className="h-6 w-6" />,
+const indicatorIcons: Record<string, React.ReactNode> = {
+  "أداء الواجبات الوظيفية": <ClipboardList className="h-6 w-6" />,
+  "التفاعل مع المجتمع المهني": <Users className="h-6 w-6" />,
+  "التفاعل مع أولياء الأمور": <UserIcon className="h-6 w-6" />,
+  "استراتيجيات التدريس": <Target className="h-6 w-6" />,
+  "تحسين نتائج المتعلمين": <TrendingUp className="h-6 w-6" />,
+  "إعداد وتنفيذ خطط التعلم": <FileText className="h-6 w-6" />,
+  "توظيف تقنيات ووسائل التعلم المناسبة": <Layers className="h-6 w-6" />,
+  "تهيئة البيئة التعليمية": <School className="h-6 w-6" />,
+  "الإدارة الصفية": <Building className="h-6 w-6" />,
+  "تحليل نتائج المتعلمين وتشخيص مستوياتهم": <BarChart3 className="h-6 w-6" />,
+  "تنوع أساليب التقويم": <CheckCircle className="h-6 w-6" />,
+  "الإبداع والابتكار": <Star className="h-6 w-6" />,
+};
+
+const getIndicatorIcon = (title: string): React.ReactNode => {
+  return indicatorIcons[title] || <Target className="h-6 w-6" />;
 };
 
 export default function Home() {
@@ -792,7 +796,7 @@ export default function Home() {
                         ? "bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-400" 
                         : "bg-muted text-muted-foreground"
                     }`}>
-                      {indicatorIcons[(index % 12) + 1]}
+                      {getIndicatorIcon(indicator.title)}
                     </div>
                     <div className="text-sm font-medium line-clamp-2 mb-1">
                       {indicator.title}
@@ -866,7 +870,7 @@ export default function Home() {
                           <div className="text-right">
                             <h3 className="text-lg font-bold flex items-center gap-2 justify-end">
                               المؤشر {indicatorIndex + 1}: {indicator.title}
-                              {indicatorIcons[(indicatorIndex % 12) + 1]}
+                              {getIndicatorIcon(indicator.title)}
                             </h3>
                             <div className="flex items-center gap-2 justify-end mt-1">
                               <Badge variant={indicator.status === "completed" ? "default" : "secondary"}>
