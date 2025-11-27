@@ -60,7 +60,7 @@ export function PrintReportModal({
           {/* Principal Info */}
           <div className="border border-black p-4">
             <h2 className="text-lg font-bold mb-4 text-center">بيانات مدير المدرسة</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <p className="font-semibold">الاسم:</p>
                 <p className="ml-4">{principalName}</p>
@@ -72,10 +72,6 @@ export function PrintReportModal({
               <div>
                 <p className="font-semibold">الإدارة:</p>
                 <p className="ml-4">{department}</p>
-              </div>
-              <div>
-                <p className="font-semibold">المشرف:</p>
-                <p className="ml-4">عبدالعزيز الخلفان</p>
               </div>
             </div>
           </div>
@@ -167,6 +163,7 @@ export function PrintReportModal({
           <div className="text-center border-t-2 border-black pt-4">
             <p className="text-sm font-semibold">تم إعداد هذا التقرير بواسطة نظام توثيق شواهد الأداء الوظيفي</p>
             <p className="text-xs mt-2">التاريخ: {new Date().toLocaleDateString('ar-SA')} | الوقت: {new Date().toLocaleTimeString('ar-SA')}</p>
+            <p className="text-xs mt-2 font-medium">الصفحة من إعداد عبدالعزيز الخلفان</p>
           </div>
         </div>
 

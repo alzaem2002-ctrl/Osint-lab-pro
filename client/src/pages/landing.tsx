@@ -151,6 +151,9 @@ export default function Landing() {
           <p className="text-sm text-muted-foreground mt-2">
             توثيق شواهد الأداء الوظيفي - نظام إلكتروني متكامل
           </p>
+          <p className="text-sm text-muted-foreground mt-4 font-medium">
+            الصفحة من إعداد عبدالعزيز الخلفان
+          </p>
         </div>
       </footer>
     </div>

@@ -63,7 +63,6 @@ export function SidebarProfile({
         <InfoGroup label="الإسم" value={displayName} testId="info-name" />
         <InfoGroup label="المدرسة" value={schoolName} testId="info-school" />
         <InfoGroup label="إدارة التعليم" value={department} testId="info-department" />
-        <InfoGroup label="المشرف على الصفحة" value="الأستاذ / عبدالعزيز الخلفان" testId="info-supervisor" />
         <InfoGroup label="وسيلة التواصل" value={email} testId="info-email" />
         <InfoGroup label="سنة الخدمة" value={`${yearsOfService} سنة`} testId="info-years" />
       </div>

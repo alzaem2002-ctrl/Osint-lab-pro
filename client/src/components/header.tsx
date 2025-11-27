@@ -29,16 +29,10 @@ export function Header({ stats, user }: HeaderProps) {
           توثيق شواهد الأداء الوظيفي
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg mb-6">
-          <div className="text-center p-3 border-l-2 border-l-primary" data-testid="text-principal-info">
+        <div className="p-4 bg-muted rounded-lg mb-6">
+          <div className="text-center p-3" data-testid="text-principal-info">
             <span className="font-bold text-foreground">مدير المدرسة:</span>
-            <br />
-            <span className="text-muted-foreground">{principalName}</span>
-          </div>
-          <div className="text-center p-3 border-l-2 border-l-accent" data-testid="text-supervisor-info">
-            <span className="font-bold text-foreground">المشرف على الصفحة:</span>
-            <br />
-            <span className="text-muted-foreground">عبدالعزيز الخلفان</span>
+            <span className="text-muted-foreground mr-2">{principalName}</span>
           </div>
         </div>
         
