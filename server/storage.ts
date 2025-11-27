@@ -79,6 +79,10 @@ export interface IStorage {
   // Creator methods (site management)
   getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: string): Promise<User | undefined>;
+  
+  // Custom auth methods
+  findTeacherByName(firstName: string, lastName: string): Promise<User | undefined>;
+  findUserByRole(role: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -482,6 +486,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return updated;
+  }
+
+  // Custom auth methods
+  async findTeacherByName(firstName: string, lastName: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.firstName, firstName),
+          eq(users.lastName, lastName),
+          eq(users.role, "teacher")
+        )
+      );
+    return user;
+  }
+
+  async findUserByRole(role: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, role))
+      .limit(1);
+    return user;
   }
 }
 

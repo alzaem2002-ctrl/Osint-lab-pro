@@ -131,6 +131,13 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Check session-based auth first (custom login)
+  const sessionUserId = (req.session as any)?.userId;
+  if (sessionUserId) {
+    return next();
+  }
+
+  // Fall back to Replit OAuth
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
@@ -159,16 +166,29 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Helper function to get userId from session or OAuth
+async function getUserIdFromRequest(req: any): Promise<string | null> {
+  // Check session-based auth first (custom login)
+  const sessionUserId = (req.session as any)?.userId;
+  if (sessionUserId) {
+    return sessionUserId;
+  }
+  
+  // Fall back to Replit OAuth
+  const user = req.user as any;
+  return user?.claims?.sub || null;
+}
+
 // Middleware to check if user is the site creator (highest permission level)
 export const isCreator: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const userId = await getUserIdFromRequest(req);
   
-  if (!user?.claims?.sub) {
+  if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
-    const dbUser = await storage.getUser(user.claims.sub);
+    const dbUser = await storage.getUser(userId);
     if (!dbUser || dbUser.role !== "creator") {
       return res.status(403).json({ message: "Forbidden - Creator access required" });
     }
@@ -180,14 +200,14 @@ export const isCreator: RequestHandler = async (req, res, next) => {
 
 // Middleware to check if user is a principal (admin role) or creator
 export const isPrincipal: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const userId = await getUserIdFromRequest(req);
   
-  if (!user?.claims?.sub) {
+  if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
-    const dbUser = await storage.getUser(user.claims.sub);
+    const dbUser = await storage.getUser(userId);
     if (!dbUser || (dbUser.role !== "admin" && dbUser.role !== "creator")) {
       return res.status(403).json({ message: "Forbidden - Principal access required" });
     }
@@ -199,14 +219,14 @@ export const isPrincipal: RequestHandler = async (req, res, next) => {
 
 // Middleware to check if user is a supervisor (or higher)
 export const isSupervisor: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const userId = await getUserIdFromRequest(req);
   
-  if (!user?.claims?.sub) {
+  if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
-    const dbUser = await storage.getUser(user.claims.sub);
+    const dbUser = await storage.getUser(userId);
     if (!dbUser || (dbUser.role !== "admin" && dbUser.role !== "supervisor" && dbUser.role !== "creator")) {
       return res.status(403).json({ message: "Forbidden - Supervisor access required" });
     }
@@ -215,3 +235,6 @@ export const isSupervisor: RequestHandler = async (req, res, next) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// Export helper function for use in routes
+export { getUserIdFromRequest };

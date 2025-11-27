@@ -1,19 +1,176 @@
 import { type Server, createServer } from "node:http";
 import type { Express } from "express";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isPrincipal, isCreator } from "./replitAuth";
+import { setupAuth, isAuthenticated, isPrincipal, isCreator, getUserIdFromRequest } from "./replitAuth";
+import { randomBytes } from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
   
-  app.get("/api/user", async (req, res) => {
-    const user = req.user as any;
-    
-    if (!req.isAuthenticated() || !user?.claims?.sub) {
-      return res.json(null);
-    }
-
+  // Custom login endpoint for role-based authentication
+  app.post("/api/auth/login", async (req, res) => {
     try {
+      const { role, name, password } = req.body;
+
+      if (!role || !["teacher", "admin", "creator"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      // Teacher login - create or find by name
+      if (role === "teacher") {
+        if (!name || typeof name !== "string" || name.trim().length < 2) {
+          return res.status(400).json({ message: "يرجى إدخال اسم صحيح" });
+        }
+
+        const trimmedName = name.trim();
+        const nameParts = trimmedName.split(" ");
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        // Check if teacher with this name exists
+        let existingTeacher = await storage.findTeacherByName(firstName, lastName);
+        
+        if (existingTeacher) {
+          // Login with existing teacher
+          (req.session as any).userId = existingTeacher.id;
+          (req.session as any).userRole = "teacher";
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+          return res.json({ success: true, user: existingTeacher });
+        }
+
+        // Create new teacher
+        const uniqueId = `teacher_${randomBytes(8).toString("hex")}`;
+        const newTeacher = await storage.upsertUser({
+          id: uniqueId,
+          firstName,
+          lastName,
+          email: `${uniqueId}@school.local`,
+          role: "teacher",
+        });
+
+        (req.session as any).userId = newTeacher.id;
+        (req.session as any).userRole = "teacher";
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        return res.json({ success: true, user: newTeacher });
+      }
+
+      // Admin (Principal) login - check school password
+      if (role === "admin") {
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        
+        if (!adminPassword) {
+          return res.status(500).json({ message: "لم يتم تعيين الرقم السري للمدير" });
+        }
+
+        if (password !== adminPassword) {
+          return res.status(401).json({ message: "الرقم السري غير صحيح" });
+        }
+
+        // Find or create admin user
+        let adminUser = await storage.findUserByRole("admin");
+        
+        if (!adminUser) {
+          const uniqueId = `admin_${randomBytes(8).toString("hex")}`;
+          adminUser = await storage.upsertUser({
+            id: uniqueId,
+            firstName: "مدير",
+            lastName: "المدرسة",
+            email: `admin@school.local`,
+            role: "admin",
+          });
+        }
+
+        (req.session as any).userId = adminUser.id;
+        (req.session as any).userRole = "admin";
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        return res.json({ success: true, user: adminUser });
+      }
+
+      // Creator login - check creator password
+      if (role === "creator") {
+        const creatorPassword = process.env.CREATOR_PASSWORD;
+        
+        if (!creatorPassword) {
+          return res.status(500).json({ message: "لم يتم تعيين الرقم السري لمنشئ الموقع" });
+        }
+
+        if (password !== creatorPassword) {
+          return res.status(401).json({ message: "الرقم السري غير صحيح" });
+        }
+
+        // Find or create creator user
+        let creatorUser = await storage.findUserByRole("creator");
+        
+        if (!creatorUser) {
+          const uniqueId = `creator_${randomBytes(8).toString("hex")}`;
+          creatorUser = await storage.upsertUser({
+            id: uniqueId,
+            firstName: "عبدالعزيز",
+            lastName: "الخلفان",
+            email: `creator@school.local`,
+            role: "creator",
+          });
+        }
+
+        (req.session as any).userId = creatorUser.id;
+        (req.session as any).userRole = "creator";
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        return res.json({ success: true, user: creatorUser });
+      }
+
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "حدث خطأ أثناء تسجيل الدخول" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "حدث خطأ أثناء تسجيل الخروج" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ success: true });
+    });
+  });
+  
+  app.get("/api/user", async (req, res) => {
+    try {
+      // Check session-based auth first (custom login)
+      const sessionUserId = (req.session as any)?.userId;
+      if (sessionUserId) {
+        const dbUser = await storage.getUser(sessionUserId);
+        return res.json(dbUser);
+      }
+
+      // Fall back to Replit OAuth
+      const user = req.user as any;
+      if (!req.isAuthenticated() || !user?.claims?.sub) {
+        return res.json(null);
+      }
+
       const dbUser = await storage.getUser(user.claims.sub);
       res.json(dbUser);
     } catch (error) {
@@ -23,11 +180,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch("/api/user", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const { firstName, lastName, educationalLevel, schoolName, educationDepartment, subject, yearsOfService, contactEmail } = req.body;
       
-      const updated = await storage.updateUser(user.claims.sub, {
+      const updated = await storage.updateUser(userId, {
         firstName,
         lastName,
         educationalLevel,
@@ -50,9 +211,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/stats", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
-      const stats = await storage.getStats(user?.claims?.sub);
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const stats = await storage.getStats(userId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -61,9 +225,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/indicators", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
-      const indicators = await storage.getIndicators(user?.claims?.sub);
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const indicators = await storage.getIndicators(userId);
       res.json(indicators);
     } catch (error) {
       console.error("Error fetching indicators:", error);
@@ -72,14 +239,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/indicators", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const { title, description, criteria: criteriaList } = req.body;
       
       const indicator = await storage.createIndicator({
         title,
         description,
-        userId: user.claims.sub,
+        userId,
         status: "pending",
       });
 
@@ -105,13 +275,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/indicators/:id", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const indicator = await storage.getIndicator(req.params.id);
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       res.json(indicator);
@@ -122,13 +295,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch("/api/indicators/:id", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const indicator = await storage.getIndicator(req.params.id);
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       const { title, description, status, order } = req.body;
@@ -147,13 +323,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete("/api/indicators/:id", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const indicator = await storage.getIndicator(req.params.id);
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       await storage.deleteIndicator(req.params.id);
@@ -165,13 +344,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch("/api/indicators/:indicatorId/criteria/:criteriaId", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const indicator = await storage.getIndicator(req.params.indicatorId);
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -207,13 +389,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/indicators/:id/witnesses", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const indicator = await storage.getIndicator(req.params.id);
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       const witnesses = await storage.getWitnesses(req.params.id);
@@ -225,13 +410,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/indicators/:id/witnesses", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const indicator = await storage.getIndicator(req.params.id);
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -253,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         indicatorId: req.params.id,
         criteriaId,
         fileType,
-        userId: user.claims.sub,
+        userId,
       });
       
       res.json(witness);
@@ -264,13 +452,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete("/api/witnesses/:id", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const witness = await storage.getWitnessById(req.params.id);
       if (!witness) {
         return res.status(404).json({ message: "Witness not found" });
       }
-      if (witness.userId !== user.claims.sub) {
+      if (witness.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
       await storage.deleteWitness(req.params.id);
@@ -292,9 +483,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/user-strategies", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
-      const strategies = await storage.getUserStrategies(user.claims.sub);
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const strategies = await storage.getUserStrategies(userId);
       res.json(strategies);
     } catch (error) {
       console.error("Error fetching user strategies:", error);
@@ -303,16 +497,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/user-strategies", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const { strategyIds } = req.body;
       
       if (!Array.isArray(strategyIds)) {
         return res.status(400).json({ message: "strategyIds must be an array" });
       }
       
-      await storage.setUserStrategies(user.claims.sub, strategyIds);
-      const strategies = await storage.getUserStrategies(user.claims.sub);
+      await storage.setUserStrategies(userId, strategyIds);
+      const strategies = await storage.getUserStrategies(userId);
       res.json(strategies);
     } catch (error) {
       console.error("Error setting user strategies:", error);
@@ -341,8 +538,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/indicators/re-evaluate", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const { indicatorIds } = req.body;
       
       if (!Array.isArray(indicatorIds) || indicatorIds.length === 0) {
@@ -354,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!indicator) {
           return res.status(404).json({ message: `Indicator ${id} not found` });
         }
-        if (indicator.userId !== user.claims.sub) {
+        if (indicator.userId !== userId) {
           return res.status(403).json({ message: "Access denied" });
         }
       }
@@ -373,8 +573,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Teacher: Submit indicator for approval
   app.post("/api/signatures", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const { indicatorId } = req.body;
       
       if (!indicatorId) {
@@ -385,13 +588,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!indicator) {
         return res.status(404).json({ message: "Indicator not found" });
       }
-      if (indicator.userId !== user.claims.sub) {
+      if (indicator.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const signature = await storage.createSignature({
         indicatorId,
-        teacherId: user.claims.sub,
+        teacherId: userId,
         status: "pending",
       });
 
@@ -404,9 +607,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Teacher: Get my signatures
   app.get("/api/my-signatures", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
     try {
-      const signatures = await storage.getSignaturesByTeacher(user.claims.sub);
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const signatures = await storage.getSignaturesByTeacher(userId);
       res.json(signatures);
     } catch (error) {
       console.error("Error fetching signatures:", error);
@@ -464,10 +670,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Principal: Approve a signature
   app.post("/api/principal/signatures/:id/approve", isAuthenticated, isPrincipal, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const { notes } = req.body;
-      const signature = await storage.approveSignature(req.params.id, user.claims.sub, notes);
+      const signature = await storage.approveSignature(req.params.id, userId, notes);
       
       if (!signature) {
         return res.status(404).json({ message: "Signature not found" });
@@ -482,15 +691,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Principal: Reject a signature
   app.post("/api/principal/signatures/:id/reject", isAuthenticated, isPrincipal, async (req, res) => {
-    const user = req.user as any;
     try {
+      const userId = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const { notes } = req.body;
       
       if (!notes) {
         return res.status(400).json({ message: "Notes are required when rejecting" });
       }
       
-      const signature = await storage.rejectSignature(req.params.id, user.claims.sub, notes);
+      const signature = await storage.rejectSignature(req.params.id, userId, notes);
       
       if (!signature) {
         return res.status(404).json({ message: "Signature not found" });

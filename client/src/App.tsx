@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
 import Home from "@/pages/home";
 import Principal from "@/pages/principal";
 import NotFound from "@/pages/not-found";
@@ -25,10 +26,10 @@ function Router() {
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
       const isAdminOrCreator = user.role === "admin" || user.role === "creator";
-      if (isAdminOrCreator && location === "/") {
+      if (isAdminOrCreator && location === "/home") {
         setLocation("/principal");
       } else if (!isAdminOrCreator && location === "/principal") {
-        setLocation("/");
+        setLocation("/home");
       }
     }
   }, [isLoading, isAuthenticated, user, location, setLocation]);
@@ -47,10 +48,14 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/login" component={Login} />
+        </>
       ) : (
         <>
           <Route path="/" component={Home} />
+          <Route path="/home" component={Home} />
           <Route path="/principal" component={Principal} />
         </>
       )}

@@ -28,7 +28,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <a href="/api/login">
+            <a href="/login">
               <Button data-testid="button-login">
                 تسجيل الدخول
                 <ChevronLeft className="h-4 w-4 mr-2" />
@@ -48,7 +48,7 @@ export default function Landing() {
               منصة متكاملة لتوثيق وإدارة المؤشرات المهنية والشواهد الوظيفية للمعلمين والمشرفين التربويين
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/api/login">
+              <a href="/login">
                 <Button size="lg" className="w-full sm:w-auto gap-2" data-testid="button-get-started">
                   ابدأ الآن
                   <ChevronLeft className="h-5 w-5" />
@@ -128,7 +128,7 @@ export default function Landing() {
             <p className="text-lg opacity-90 mb-8">
               انضم إلى نظام التوثيق الإلكتروني المتكامل
             </p>
-            <a href="/api/login">
+            <a href="/login">
               <Button 
                 size="lg" 
                 variant="secondary" 
