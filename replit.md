@@ -3,7 +3,7 @@
 
 ### Current Status: ✅ COMPLETE & FUNCTIONAL
 
-The application is fully implemented with complete frontend, backend, database, and authentication integration.
+The application is fully implemented with complete frontend, backend, database, authentication, and multi-role signature approval system.
 
 ---
 
@@ -16,40 +16,44 @@ The application is fully implemented with complete frontend, backend, database, 
    - Session management with PostgreSQL session store
    - Token refresh and expiration handling
    - Protected routes and API endpoints
+   - Role-based access control (Teacher/Principal)
 
 2. **Database Layer**
-   - 9 tables: users, sessions, indicators, criteria, witnesses, strategies, userStrategies, capabilities, changes
+   - 10 tables: users, sessions, indicators, criteria, witnesses, strategies, userStrategies, capabilities, changes, signatures
    - PostgreSQL with Neon serverless
    - Drizzle ORM with TypeScript types
    - 18 strategies, 12 capabilities, 12 changes pre-seeded
 
-3. **Frontend Application**
+3. **Multi-Role System**
+   - **Teacher Role**: Create indicators, manage criteria, add witnesses, submit for approval
+   - **Principal Role**: View all teachers, approve/reject indicators, school-wide statistics
+   - Automatic role-based routing
+   - Data isolation between teachers
+
+4. **Signature Approval Workflow**
+   - Teachers submit completed indicators for principal approval
+   - Status tracking: pending → approved/rejected
+   - Principal can add approval notes
+   - Rejection requires reason
+
+5. **Frontend Application**
    - Landing page (non-authenticated users)
-   - Dashboard home page (authenticated users)
+   - Teacher dashboard (/home)
+   - Principal dashboard (/principal)
    - Indicator management (CRUD operations)
    - Witness/evidence management
    - Strategies selection interface
-   - Re-evaluation modal
    - Full RTL Arabic interface
    - Light/dark theme toggle
    - Responsive design
 
-4. **Backend API**
-   - 15+ REST endpoints
-   - Stats aggregation
+6. **Backend API**
+   - 20+ REST endpoints
+   - Stats aggregation for both roles
    - Indicator CRUD with criteria tracking
-   - Witness management
-   - Strategy assignment
-   - Re-evaluation workflow
+   - Signature management
+   - Principal-only protected endpoints
    - User profile management
-
-5. **UI Components**
-   - Header with statistics dashboard
-   - Sidebar profile with user actions
-   - Indicator cards with progress tracking
-   - Multiple modals for forms
-   - Responsive grid layouts
-   - Proper spacing and styling
 
 ---
 
@@ -68,6 +72,7 @@ The application is fully implemented with complete frontend, backend, database, 
 - Drizzle ORM
 - PostgreSQL (Neon)
 - Passport.js for auth
+- isPrincipal middleware for role checks
 
 **Design:**
 - Arabic RTL layout
@@ -80,34 +85,52 @@ The application is fully implemented with complete frontend, backend, database, 
 
 ## How to Use
 
-1. **Start the Application**
-   - Run: `npm run dev`
-   - Access: http://localhost:5000
+### For Teachers
 
-2. **Login**
+1. **Login**
    - Click "تسجيل الدخول" on landing page
    - Authenticate via Replit auth
-   - Redirected to dashboard
+   - Redirected to teacher dashboard
 
-3. **Add Indicators**
+2. **Add Indicators**
    - Click "إضافة مؤشر جديد"
    - Enter title, description, criteria
    - View on dashboard
 
-4. **Manage Witnesses**
+3. **Complete Indicators**
+   - Click on indicator to expand
+   - Check criteria as completed
+   - Status changes to "مكتمل" when all criteria done
+
+4. **Submit for Approval**
+   - Click "تقديم للاعتماد" on completed indicators
+   - Status changes to "قيد الانتظار"
+   - Wait for principal review
+
+5. **Manage Witnesses**
    - Click "إضافة شاهد" on any indicator
    - Add evidence/documentation
-   - Track by indicator
 
-5. **Select Strategies**
-   - Click strategy section button
-   - Choose from 18 available strategies
-   - Save selections
+### For Principals
 
-6. **Re-evaluate**
-   - Click "إعادة تحقيق" in sidebar
-   - Select indicators to reset
-   - Clears criteria and witnesses
+1. **Access Dashboard**
+   - Login with principal account (role=admin)
+   - Automatically redirected to /principal
+
+2. **View School Statistics**
+   - Total teachers, indicators, pending approvals
+   - School-wide performance overview
+
+3. **Review Teacher Work**
+   - Browse teacher list
+   - View individual teacher indicators
+   - See completion status
+
+4. **Approve/Reject Indicators**
+   - Click on pending signatures
+   - Review indicator details
+   - Approve with optional notes
+   - Reject with required reason
 
 ---
 
@@ -117,19 +140,19 @@ The application is fully implemented with complete frontend, backend, database, 
 ├── client/src/
 │   ├── pages/
 │   │   ├── landing.tsx       (public landing page)
-│   │   └── home.tsx          (authenticated dashboard)
+│   │   ├── home.tsx          (teacher dashboard)
+│   │   └── principal.tsx     (principal dashboard)
 │   └── components/
 │       ├── header.tsx
 │       ├── sidebar-profile.tsx
-│       ├── indicator-card.tsx
-│       ├── *-modal.tsx       (5 modals)
+│       ├── *-modal.tsx       (modals)
 │       └── ui/               (shadcn components)
 ├── server/
 │   ├── app.ts               (Express setup)
 │   ├── routes.ts            (API endpoints)
 │   ├── storage.ts           (Database operations)
 │   ├── db.ts                (Drizzle connection)
-│   └── replitAuth.ts        (Replit OAuth)
+│   └── replitAuth.ts        (Replit OAuth + isPrincipal)
 ├── shared/
 │   └── schema.ts            (Database & types)
 └── package.json
@@ -137,40 +160,52 @@ The application is fully implemented with complete frontend, backend, database, 
 
 ---
 
-## Key Implementation Details
+## API Endpoints
 
-### Database Seeding
-✅ Pre-loaded with 18 teaching strategies
-✅ 12 professional capabilities 
-✅ 12 change categories
+### Public
+- `GET /api/auth/callback` - OAuth callback
 
-### API Endpoints
+### Teacher Endpoints
 - `GET /api/user` - Current user
+- `PATCH /api/user` - Update profile
 - `GET /api/stats` - Dashboard statistics
 - `GET /api/indicators` - User's indicators
 - `POST /api/indicators` - Create indicator
 - `PATCH /api/indicators/:id/criteria/:id` - Toggle criterion
 - `POST/GET /api/indicators/:id/witnesses` - Witness management
 - `GET/POST /api/user-strategies` - Strategy selection
-- `POST /api/indicators/re-evaluate` - Reset indicators
+- `POST /api/signatures` - Submit for approval
+- `GET /api/my-signatures` - View submission status
 
-### Performance
-- Infinite stale time (no unnecessary refetches)
-- Query memoization for auth
-- Database connection pooling
-- Lazy component loading
+### Principal Endpoints (Protected)
+- `GET /api/principal/stats` - School statistics
+- `GET /api/principal/teachers` - All teachers list
+- `GET /api/principal/teachers/:id/indicators` - Teacher's indicators
+- `GET /api/principal/pending-signatures` - Pending approvals
+- `POST /api/principal/signatures/:id/approve` - Approve indicator
+- `POST /api/principal/signatures/:id/reject` - Reject indicator
 
 ---
 
-## What Makes It Special
+## Role-Based Routing
 
-✨ **Complete Arabic RTL Support** - Full right-to-left interface
-✨ **Professional Design** - Material Design for education
-✨ **User-Friendly** - Intuitive forms and navigation
-✨ **Secure** - OAuth authentication
-✨ **Scalable** - Modular component architecture
-✨ **Responsive** - Works on all devices
-✨ **Dark Mode** - Light/dark theme toggle
+```typescript
+// App.tsx routing logic
+if (user?.role === "admin") {
+  redirect to /principal
+} else {
+  redirect to /home
+}
+```
+
+---
+
+## Data Isolation
+
+- Teachers can only view/edit their own indicators
+- Teachers can only submit their own indicators for approval
+- Signatures are linked to specific teacher-indicator pairs
+- Principal can view all teachers but cannot modify their data
 
 ---
 
@@ -186,6 +221,7 @@ To deploy:
 ---
 
 **Status:** ✅ Ready for Production
-**Last Updated:** November 26, 2025
+**Last Updated:** November 27, 2025
 **Language:** Arabic (RTL)
-**Audience:** Teachers, Supervisors, School Administrators
+**Audience:** Teachers, Principals, School Administrators
+**Footer Credit:** الصفحة من إعداد عبدالعزيز الخلفان
